@@ -10,12 +10,15 @@ from wyoming.info import Attribution, Describe, Info, TtsProgram, TtsVoice
 from wyoming.server import AsyncEventHandler
 from wyoming.tts import Synthesize, SynthesizeChunk, SynthesizeStart, SynthesizeStop, SynthesizeStopped, SynthesizeVoice
 
-from .audio import float32_to_pcm16_bytes, pcm16_millis
+from .audio import float32_to_pcm16_bytes
 from .config import Settings
 from .constants import MODELSCOPE_MODEL_URL, SPEAKER_METADATA, SUPPORTED_LANGUAGES
 from .service import ModelService, SynthesisRequest
 
 _LOGGER = logging.getLogger(__name__)
+_PCM16_BYTES_PER_SAMPLE = 2
+_OUTPUT_SAMPLES_PER_CHUNK = 1024
+_OUTPUT_BYTES_PER_CHUNK = _OUTPUT_SAMPLES_PER_CHUNK * _PCM16_BYTES_PER_SAMPLE
 
 
 @dataclass(frozen=True)
@@ -160,7 +163,7 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
 
         worker_task = asyncio.create_task(asyncio.to_thread(run_synthesis))
         sample_rate = None
-        timestamp_ms = 0
+        total_samples = 0
         started = False
 
         while True:
@@ -168,30 +171,48 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
             if item is done:
                 break
 
-            sample_rate, payload = item
-            _LOGGER.debug(
-                "Streaming audio chunk client=%s speaker=%s bytes=%d timestamp_ms=%d",
-                self.client_name,
-                speaker,
-                len(payload),
-                timestamp_ms,
-            )
-            if not started:
-                await self.write_event(
-                    AudioStart(rate=sample_rate, width=2, channels=1, timestamp=timestamp_ms).event()
+            chunk_rate, payload = item
+            if sample_rate is None:
+                sample_rate = chunk_rate
+            elif chunk_rate != sample_rate:
+                raise RuntimeError(
+                    f"Inconsistent sample rate in synthesis stream: {chunk_rate} != {sample_rate}"
                 )
-                _LOGGER.debug("Audio stream started client=%s speaker=%s sample_rate=%s", self.client_name, speaker, sample_rate)
-                started = True
-            await self.write_event(
-                AudioChunk(
-                    rate=sample_rate,
-                    width=2,
-                    channels=1,
-                    audio=payload,
-                    timestamp=timestamp_ms,
-                ).event()
-            )
-            timestamp_ms += pcm16_millis(payload, sample_rate, channels=1)
+
+            for offset in range(0, len(payload), _OUTPUT_BYTES_PER_CHUNK):
+                sub_payload = payload[offset : offset + _OUTPUT_BYTES_PER_CHUNK]
+                if not sub_payload:
+                    continue
+
+                timestamp_ms = int(total_samples * 1000 / sample_rate)
+                _LOGGER.debug(
+                    "Streaming audio chunk client=%s speaker=%s bytes=%d timestamp_ms=%d",
+                    self.client_name,
+                    speaker,
+                    len(sub_payload),
+                    timestamp_ms,
+                )
+                if not started:
+                    await self.write_event(
+                        AudioStart(rate=sample_rate, width=2, channels=1, timestamp=timestamp_ms).event()
+                    )
+                    _LOGGER.debug(
+                        "Audio stream started client=%s speaker=%s sample_rate=%s",
+                        self.client_name,
+                        speaker,
+                        sample_rate,
+                    )
+                    started = True
+                await self.write_event(
+                    AudioChunk(
+                        rate=sample_rate,
+                        width=2,
+                        channels=1,
+                        audio=sub_payload,
+                        timestamp=timestamp_ms,
+                    ).event()
+                )
+                total_samples += len(sub_payload) // _PCM16_BYTES_PER_SAMPLE
 
         await worker_task
         if worker_error:
@@ -203,6 +224,7 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
         if not started:
             await self.write_event(AudioStart(rate=sample_rate, width=2, channels=1, timestamp=0).event())
 
+        timestamp_ms = int(total_samples * 1000 / sample_rate)
         await self.write_event(AudioStop(timestamp=timestamp_ms).event())
         _LOGGER.debug("Audio stream stopped client=%s speaker=%s total_ms=%d", self.client_name, speaker, timestamp_ms)
 
