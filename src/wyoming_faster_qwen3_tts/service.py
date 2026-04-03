@@ -23,6 +23,31 @@ _DTYPE_MAP = {
 }
 
 _SPEAKER_ORDER_MAP = {speaker.lower(): index for index, speaker in enumerate(SPEAKER_ORDER)}
+_LANGUAGE_MAP = {
+    "zh": "Chinese",
+    "zh-cn": "Chinese",
+    "zh-hans": "Chinese",
+    "en": "English",
+    "en-us": "English",
+    "ja": "Japanese",
+    "ja-jp": "Japanese",
+    "ko": "Korean",
+    "ko-kr": "Korean",
+    "de": "German",
+    "de-de": "German",
+    "fr": "French",
+    "fr-fr": "French",
+    "ru": "Russian",
+    "ru-ru": "Russian",
+    "pt": "Portuguese",
+    "pt-br": "Portuguese",
+    "pt-pt": "Portuguese",
+    "es": "Spanish",
+    "es-es": "Spanish",
+    "it": "Italian",
+    "it-it": "Italian",
+    "auto": "Auto",
+}
 
 
 @dataclass(frozen=True)
@@ -69,6 +94,9 @@ class ModelService:
         self._get_model()
         return self._speaker_lookup.get(requested_speaker.lower())
 
+    def normalize_language(self, language: str) -> str:
+        return _LANGUAGE_MAP.get(language.strip().lower(), language)
+
     def synthesize_streaming(self, request: SynthesisRequest) -> Iterator[tuple]:
         with self._infer_lock:
             model = self._get_model()
@@ -81,7 +109,7 @@ class ModelService:
                     model.generate_custom_voice_streaming(
                         text=request.text,
                         speaker=request.speaker,
-                        language=request.language,
+                        language=self.normalize_language(request.language),
                         instruct=request.instruct,
                         chunk_size=self.settings.chunk_size,
                     ),
@@ -141,7 +169,7 @@ class ModelService:
                 SynthesisRequest(
                     text=warmup_text,
                     speaker=speaker,
-                    language=self.settings.default_language,
+                    language=self.normalize_language(self.settings.default_language),
                     instruct=self.settings.instruct,
                 )
             ),

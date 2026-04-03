@@ -17,32 +17,6 @@ from .service import ModelService, SynthesisRequest
 
 _LOGGER = logging.getLogger(__name__)
 
-_LANGUAGE_MAP = {
-    "zh": "Chinese",
-    "zh-cn": "Chinese",
-    "zh-hans": "Chinese",
-    "en": "English",
-    "en-us": "English",
-    "ja": "Japanese",
-    "ja-jp": "Japanese",
-    "ko": "Korean",
-    "ko-kr": "Korean",
-    "de": "German",
-    "de-de": "German",
-    "fr": "French",
-    "fr-fr": "French",
-    "ru": "Russian",
-    "ru-ru": "Russian",
-    "pt": "Portuguese",
-    "pt-br": "Portuguese",
-    "pt-pt": "Portuguese",
-    "es": "Spanish",
-    "es-es": "Spanish",
-    "it": "Italian",
-    "it-it": "Italian",
-    "auto": "Auto",
-}
-
 
 @dataclass(frozen=True)
 class AppState:
@@ -250,11 +224,8 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
 
     def _resolve_language(self, synthesize: Synthesize) -> str:
         if synthesize.voice and synthesize.voice.language:
-            return self._normalize_language(synthesize.voice.language)
-        return self._normalize_language(self.state.settings.default_language)
-
-    def _normalize_language(self, language: str) -> str:
-        return _LANGUAGE_MAP.get(language.strip().lower(), language)
+            return self.state.model_service.normalize_language(synthesize.voice.language)
+        return self.state.model_service.normalize_language(self.state.settings.default_language)
 
     def _describe_peer(self) -> str:
         with suppress(Exception):

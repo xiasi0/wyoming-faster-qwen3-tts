@@ -77,7 +77,7 @@ docker run --rm \
 启动：
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 当前 [docker-compose.yml](/root/wyoming-faster-qwen3-tts/docker-compose.yml) 默认包含：
@@ -110,6 +110,7 @@ environment:
 - 容器运行依赖宿主机已安装 NVIDIA Container Toolkit。
 - 必须使用 CUDA，因为 `faster-qwen3-tts` 不支持纯 CPU 推理。
 - 容器首次启动时会把模型下载到 `/app/data/models`，该目录映射到宿主机 `${HOME}/data/models`。
+- 镜像构建阶段只安装系统包；Python 依赖会在容器启动时自动安装，然后再启动服务。
 - 服务在加载前会校验两个大尺寸 `safetensors` 文件的 SHA-256。
 - 镜像内已安装 `sox`，用于避免上游依赖启动时的相关告警。
 - 容器日志会同时输出应用日志和 ModelScope 下载进度。
