@@ -28,9 +28,8 @@ def _safe_remove_file(path: Path) -> bool:
     return True
 
 
-def cleanup_build_artifacts(project_root: Path, model_dir: Path) -> tuple[int, int]:
+def cleanup_build_artifacts(project_root: Path, model_dir: Path) -> int:
     removed_dirs = 0
-    removed_files = 0
 
     excluded_roots = {
         project_root / ".venv",
@@ -47,7 +46,7 @@ def cleanup_build_artifacts(project_root: Path, model_dir: Path) -> tuple[int, i
             if _safe_remove_dir(path):
                 removed_dirs += 1
 
-    return removed_dirs, removed_files
+    return removed_dirs
 
 
 def cleanup_runtime_outputs(project_root: Path) -> tuple[int, int]:
@@ -73,10 +72,10 @@ def cleanup_runtime_outputs(project_root: Path) -> tuple[int, int]:
 
 
 def cleanup_project_junk(project_root: Path, model_dir: Path) -> None:
-    build_dirs, build_files = cleanup_build_artifacts(project_root, model_dir)
+    build_dirs = cleanup_build_artifacts(project_root, model_dir)
     runtime_dirs, runtime_files = cleanup_runtime_outputs(project_root)
     removed_dirs = build_dirs + runtime_dirs
-    removed_files = build_files + runtime_files
+    removed_files = runtime_files
 
     if removed_dirs or removed_files:
         _LOGGER.info(
