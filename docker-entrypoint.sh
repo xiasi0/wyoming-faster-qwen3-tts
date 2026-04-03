@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+pip_install_compat() {
+  if python3 -m pip install --help 2>/dev/null | grep -q -- "--break-system-packages"; then
+    python3 -m pip install --break-system-packages "$@"
+  else
+    python3 -m pip install "$@"
+  fi
+}
+
 bootstrap_python_deps() {
   if python3 -c "import wyoming, numpy, modelscope, faster_qwen3_tts" >/dev/null 2>&1; then
     return
   fi
 
   echo "Installing Python dependencies inside container..."
-  python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
-  python3 -m pip install --break-system-packages \
+  pip_install_compat --upgrade pip setuptools wheel
+  pip_install_compat \
     faster-qwen3-tts \
     modelscope \
     numpy \

@@ -18,6 +18,7 @@ dist/
 
 .env
 .env.*
+.codex
 
 outputs/
 output/
