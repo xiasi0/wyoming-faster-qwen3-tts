@@ -15,86 +15,67 @@
 
 ## 快速开始
 
-### 本地运行
+### 1) 拉取代码并进入目录
 
 ```bash
-python -m pip install -e .
-wyoming-faster-qwen3-tts
+git clone https://github.com/xiasi0/wyoming-faster-qwen3-tts.git
+cd wyoming-faster-qwen3-tts
 ```
 
-默认行为：
-
-- `language=zh-CN`
-- `speaker=serena`
-- `log_level=info`
-- 本地直接运行时默认不启用 `instruct`
-
-本地运行参数：
-
-| 参数 | 默认值 | 说明 |
-| --- | --- | --- |
-| `--uri` | `tcp://0.0.0.0:10200` | Wyoming 服务监听地址 |
-| `--device` | `cuda` | 推理设备，当前仅支持 CUDA |
-| `--dtype` | `bf16` | 推理精度，可选 `bf16`、`fp16`、`fp32` |
-| `--default-language` | `zh-CN` | 默认语言，对外使用语言标识符，内部会映射到上游支持的语言名 |
-| `--default-speaker` | `Serena` | 默认 speaker |
-| `--instruct` | 未设置 | 可选的固定 instruction，会作用于预热和后续请求 |
-| `--chunk-size` | `8` | 流式音频输出的 chunk 大小 |
-| `--log-level` | `INFO` | 日志级别 |
-| `--model-dir` | `data/models/Qwen__Qwen3-TTS-12Hz-0.6B-CustomVoice` | 本地模型目录 |
-
-### Docker
-
-构建镜像：
-
-```bash
-docker build -t wyoming-faster-qwen3-tts .
-```
-
-运行容器：
-
-```bash
-docker run --rm \
-  --gpus all \
-  -p 10200:10200 \
-  -v "${HOME}/data/models:/app/data/models" \
-  wyoming-faster-qwen3-tts
-```
-
-带固定 instruction 运行：
-
-```bash
-docker run --rm \
-  --gpus all \
-  -p 10200:10200 \
-  -v "${HOME}/data/models:/app/data/models" \
-  -e instruct="用温柔自然的语气说" \
-  wyoming-faster-qwen3-tts
-```
-
-### Docker Compose
-
-启动：
+### 2) 推荐：使用 Docker Compose 启动
 
 ```bash
 docker compose up -d --build
 ```
 
-当前 [docker-compose.yml](/root/wyoming-faster-qwen3-tts/docker-compose.yml) 默认包含：
+查看日志：
+
+```bash
+docker compose logs -f
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+默认配置见 [docker-compose.yml](/root/wyoming-faster-qwen3-tts/docker-compose.yml)，包括：
 
 - `10200:10200`
 - `${HOME}/data/models:/app/data/models`
 - `language=zh-CN`
 - `speaker=serena`
 - `log_level=info`
-- 一条默认 `instruct`
+- `instruct`
 
-如果你想调整固定 instruction，可以修改：
+### 3) 可选：本地运行（非 Docker）
 
-```yaml
-environment:
-  instruct: 用温柔自然的语气说
+```bash
+python -m pip install -e .
+wyoming-faster-qwen3-tts
 ```
+
+本地默认值：
+
+- `language=zh-CN`
+- `speaker=serena`
+- `log_level=info`
+- `instruct` 默认不设置
+
+常用参数：
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `--uri` | `tcp://0.0.0.0:10200` | Wyoming 服务监听地址 |
+| `--device` | `cuda` | 推理设备，仅支持 CUDA |
+| `--dtype` | `bf16` | 推理精度：`bf16`、`fp16`、`fp32` |
+| `--default-language` | `zh-CN` | 默认语言 |
+| `--default-speaker` | `Serena` | 默认 speaker |
+| `--instruct` | 未设置 | 固定 instruction |
+| `--chunk-size` | `8` | 流式输出 chunk 大小 |
+| `--log-level` | `INFO` | 日志级别 |
+| `--model-dir` | `data/models/Qwen__Qwen3-TTS-12Hz-0.6B-CustomVoice` | 模型目录 |
 
 `docker-compose.yml` 环境变量：
 
