@@ -1,0 +1,23 @@
+services:
+  wyoming-faster-qwen3-tts:
+    build:
+      context: .
+    image: wyoming-faster-qwen3-tts:latest
+    container_name: wyoming-faster-qwen3-tts
+    restart: unless-stopped
+    ports:
+      - "10200:10200"
+    volumes:
+      - ${HOME}/data/models:/app/data/models
+    environment:
+      language: zh-CN
+      speaker: serena
+      log_level: info
+      instruct: 用自然、清晰、亲切的语气说
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
