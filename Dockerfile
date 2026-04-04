@@ -17,15 +17,20 @@ RUN apt-get update \
 
 COPY pyproject.toml README.md /app/
 COPY src /app/src
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
-RUN chmod +x /app/docker-entrypoint.sh \
+RUN if python3 -m pip install --help 2>/dev/null | grep -q -- "--break-system-packages"; then \
+        PIP_SYSTEM="--break-system-packages"; \
+    else \
+        PIP_SYSTEM=""; \
+    fi \
+    && python3 -m pip install ${PIP_SYSTEM} --upgrade pip setuptools wheel \
+    && python3 -m pip install ${PIP_SYSTEM} /app \
+    && python3 -c "import wyoming, numpy, modelscope, faster_qwen3_tts, wyoming_faster_qwen3_tts" \
+    && (python3 -m pip cache purge >/dev/null 2>&1 || true) \
     && rm -rf /root/.cache /tmp/*
 
 EXPOSE 10200
 
 VOLUME ["/app/data"]
 
-ENTRYPOINT ["bash", "/app/docker-entrypoint.sh"]
-
-CMD []
+CMD ["python3", "-m", "wyoming_faster_qwen3_tts"]

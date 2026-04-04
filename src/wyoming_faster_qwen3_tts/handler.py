@@ -12,7 +12,7 @@ from wyoming.tts import Synthesize, SynthesizeChunk, SynthesizeStart, Synthesize
 
 from .audio import float32_to_pcm16_bytes
 from .config import Settings
-from .constants import MODELSCOPE_MODEL_URL, SPEAKER_METADATA, SUPPORTED_LANGUAGES
+from .constants import SPEAKER_METADATA
 from .service import ModelService, SynthesisRequest
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
     def _info_event(self) -> Info:
         program = TtsProgram(
             name="wyoming-faster-qwen3-tts",
-            attribution=Attribution(name="Qwen", url=MODELSCOPE_MODEL_URL),
+            attribution=Attribution(name="Qwen", url=self.state.settings.model_url),
             installed=True,
             description="Wyoming TTS service backed by faster-qwen3-tts",
             version=None,
@@ -119,12 +119,12 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
         for speaker in self.state.model_service.supported_speakers:
             metadata = SPEAKER_METADATA.get(
                 speaker,
-                {"languages": SUPPORTED_LANGUAGES, "description": f"{speaker} speaker"},
+                {"languages": self.state.model_service.supported_languages, "description": f"{speaker} speaker"},
             )
             voices.append(
                 TtsVoice(
                     name=speaker,
-                    attribution=Attribution(name="Qwen", url=MODELSCOPE_MODEL_URL),
+                    attribution=Attribution(name="Qwen", url=self.state.settings.model_url),
                     installed=True,
                     description=metadata["description"],
                     version=None,
@@ -135,6 +135,7 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
         return voices
 
     async def _handle_synthesize(self, synthesize: Synthesize) -> None:
+        request_start = asyncio.get_running_loop().time()
         speaker = self._resolve_speaker(synthesize)
         language = self._resolve_language(synthesize)
         _LOGGER.info("Synthesize request client=%s speaker=%s language=%s chars=%d", self.client_name, speaker, language, len(synthesize.text))
@@ -165,6 +166,7 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
         sample_rate = None
         total_samples = 0
         started = False
+        first_audio_sent_elapsed_s: float | None = None
 
         while True:
             item = await queue.get()
@@ -212,6 +214,16 @@ class FasterQwen3TtsEventHandler(AsyncEventHandler):
                         timestamp=timestamp_ms,
                     ).event()
                 )
+                if first_audio_sent_elapsed_s is None:
+                    first_audio_sent_elapsed_s = asyncio.get_running_loop().time() - request_start
+                    _LOGGER.info(
+                        "Output first audio client=%s speaker=%s language=%s chars=%d first_audio_s=%.3f",
+                        self.client_name,
+                        speaker,
+                        language,
+                        len(synthesize.text),
+                        first_audio_sent_elapsed_s,
+                    )
                 total_samples += len(sub_payload) // _PCM16_BYTES_PER_SAMPLE
 
         await worker_task

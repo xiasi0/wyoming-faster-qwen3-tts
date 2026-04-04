@@ -1,8 +1,18 @@
+from dataclasses import dataclass
 from pathlib import Path
 
-MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
-MODEL_REVISION = "master"
-MODELSCOPE_MODEL_URL = "https://modelscope.cn/models/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+
+@dataclass(frozen=True)
+class ModelProfile:
+    model_name: str
+    model_revision: str
+    required_files: tuple[str, ...]
+    expected_sha256: dict[str, str]
+    prune_unused: bool = True
+
+    @property
+    def modelscope_url(self) -> str:
+        return f"https://modelscope.cn/models/{self.model_name}"
 
 SUPPORTED_LANGUAGES = [
     "zh",
@@ -68,12 +78,8 @@ SPEAKER_METADATA = {
     },
 }
 
-EXPECTED_SHA256 = {
-    "model.safetensors": "bc3c7e785eb961179c25450d1acff03f839e0002f2f3a5aeb67b5735c0fa2adb",
-    "speech_tokenizer/model.safetensors": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
-}
-
-REQUIRED_FILES = tuple(EXPECTED_SHA256.keys()) + (
+_COMMON_REQUIRED_FILES = (
+    "model.safetensors",
     "config.json",
     "configuration.json",
     "generation_config.json",
@@ -84,8 +90,43 @@ REQUIRED_FILES = tuple(EXPECTED_SHA256.keys()) + (
     "speech_tokenizer/config.json",
     "speech_tokenizer/configuration.json",
     "speech_tokenizer/preprocessor_config.json",
+    "speech_tokenizer/model.safetensors",
 )
 
+_EXPECTED_SHA256_0_6B = {
+    "model.safetensors": "bc3c7e785eb961179c25450d1acff03f839e0002f2f3a5aeb67b5735c0fa2adb",
+    "speech_tokenizer/model.safetensors": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+}
 
-def default_model_dir(project_root: Path) -> Path:
-    return project_root / "data" / "models" / "Qwen__Qwen3-TTS-12Hz-0.6B-CustomVoice"
+_MODEL_0_6B_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+_MODEL_1_7B_ID = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+
+MODEL_PROFILES: dict[str, ModelProfile] = {
+    _MODEL_0_6B_ID: ModelProfile(
+        model_name=_MODEL_0_6B_ID,
+        model_revision="master",
+        required_files=_COMMON_REQUIRED_FILES,
+        expected_sha256=_EXPECTED_SHA256_0_6B,
+    ),
+    _MODEL_1_7B_ID: ModelProfile(
+        model_name=_MODEL_1_7B_ID,
+        model_revision="master",
+        required_files=_COMMON_REQUIRED_FILES,
+        expected_sha256={},
+    ),
+}
+
+DEFAULT_MODEL_NAME = _MODEL_0_6B_ID
+DEFAULT_MODEL_REVISION = MODEL_PROFILES[DEFAULT_MODEL_NAME].model_revision
+
+
+def modelscope_url_for_model(model_name: str) -> str:
+    return f"https://modelscope.cn/models/{model_name}"
+
+
+def model_profile_for_name(model_name: str) -> ModelProfile | None:
+    return MODEL_PROFILES.get(model_name)
+
+
+def default_model_dir(project_root: Path, model_name: str = DEFAULT_MODEL_NAME) -> Path:
+    return project_root / "data" / "models" / model_name.replace("/", "__")

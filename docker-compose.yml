@@ -10,10 +10,14 @@ services:
     volumes:
       - ${HOME}/data/models:/app/data/models
     environment:
+      model_name: Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
       language: zh-CN
       speaker: serena
       log_level: info
-      instruct: 用自然、清晰、亲切的语气说
+      instruct: 你是一个声音甜美的女性，声音清晰，语速适中，富有感情，偶尔撒娇卖萌
+      chunk_size: "4"
+      non_streaming_mode: "false"
+      temperature: "0.9"
     deploy:
       resources:
         reservations:
